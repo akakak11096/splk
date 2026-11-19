@@ -39,7 +39,7 @@ input[type=text]{background:transparent;border:1px solid var(--line);border-radi
 .item button{padding:2px 7px;flex:none}
 .item input[type=checkbox]{flex:none}
 .stage{display:flex;flex-direction:column;gap:8px}
-.stage canvas{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:10px;cursor:pointer;touch-action:none}
+.stage canvas{-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:10px;cursor:pointer;touch-action:none}
 .status{color:var(--mute);font-size:13px;min-height:20px}
 label.chk{display:flex;gap:6px;align-items:center;font-size:14px}
 textarea{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:6px;padding:5px 8px;width:100%;min-width:0;resize:vertical}
@@ -49,8 +49,11 @@ textarea{font:inherit;color:var(--ink);background:transparent;border:1px solid v
 section[hidden]{display:none}
 .cvw{position:relative}
 
-.ringBtn{position:absolute;transform:translate(-50%,-100%);display:none;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.ringBtn{position:absolute;transform:translate(-50%,-100%);display:none;white-space:nowrap;opacity:.8;font-size:13px;padding:4px 10px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 #legend input[type=checkbox]{flex:none}
+button{-webkit-tap-highlight-color:transparent}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.card[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -85,10 +88,6 @@ section[hidden]{display:none}
       <div id="legend"></div>
       <button id="addKind">+ 선 종류 추가</button>
       <p class="hint" style="margin-top:6px">체크박스를 끄면 그 종류의 선과 범례가 숨겨집니다.</p>
-      <div class="row" style="margin-top:8px">
-        <span style="white-space:nowrap">새 선의 화살표</span>
-        <select id="arrowSel"><option value="0">없음</option><option value="1">한쪽 (→ 마지막 선택)</option><option value="2">양쪽 (↔)</option></select>
-      </div>
     </section>
 
     <section class="tab-sec" data-tab="links">
@@ -100,7 +99,7 @@ section[hidden]{display:none}
         <button id="deselBtn">선택 해제</button>
       </div>
       <h2 style="margin-top:16px">연결 목록</h2>
-      <p class="hint" style="margin-bottom:6px">항목 이름을 누르면 캔버스에 ● 핸들이 나타납니다. 끌어서 곡선을 만들거나 묶음 중심점을 옮기세요.</p>
+      <p class="hint" style="margin-bottom:6px">캔버스에서 선을 직접 눌러도 선택됩니다. 선택하면 캔버스 아래에 편집 창(종류·화살표·텍스트·색)이 뜨고, ● 핸들을 끌어 곡선/중심점을 옮길 수 있어요.</p>
       <div class="list" id="links" style="max-height:50vh"></div>
     </section>
 
@@ -123,8 +122,9 @@ section[hidden]{display:none}
   </aside>
 
   <main class="stage">
-    <div class="cvw"><canvas id="cv" width="1600" height="1600"></canvas><button id="ringBtn" class="ringBtn primary" type="button"></button></div>
+    <div class="cvw"><canvas id="cv" width="1600" height="1600"></canvas><button id="ringBtn" class="ringBtn" type="button"></button></div>
     <div class="status" id="status"></div>
+    <div class="card" id="linkEd" hidden></div>
   </main>
 </div>
 
@@ -248,8 +248,20 @@ section[hidden]{display:none}
         ctx.stroke();
         ctx.globalAlpha=1;hs.forEach(h=>head(h[0],h[1],col));ctx.globalAlpha=.85;
       }else{
-        g.ps.forEach(p=>{ctx.moveTo(p.x,p.y);ctx.lineTo(g.m.x,g.m.y);});
+        const hb=[];
+        g.ps.forEach((p,pi)=>{
+          let a={x:p.x,y:p.y},b={x:g.m.x,y:g.m.y};
+          const d=Math.hypot(b.x-a.x,b.y-a.y)||1,ux=(b.x-a.x)/d,uy=(b.y-a.y)/d;
+          if((l.ar===2||(l.ar===1&&pi===g.ps.length-1))&&d>AR+75){
+            const tip={x:a.x+ux*(AR+3),y:a.y+uy*(AR+3)},base={x:tip.x+ux*28,y:tip.y+uy*28};hb.push([tip,base]);a=base;
+          }
+          if(l.ar===3&&d>AR+75){
+            const tip={x:b.x-ux*8,y:b.y-uy*8},base={x:tip.x-ux*28,y:tip.y-uy*28};hb.push([tip,base]);b=base;
+          }
+          ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+        });
         ctx.stroke();
+        ctx.globalAlpha=1;hb.forEach(h=>head(h[0],h[1],col));ctx.globalAlpha=.85;
         ctx.fillStyle=col;ctx.beginPath();ctx.arc(g.m.x,g.m.y,10,0,7);ctx.fill();
       }
     });
@@ -272,7 +284,7 @@ section[hidden]{display:none}
       }
       ctx.restore();
       const si=sel.indexOf(c.id);
-      ctx.lineWidth=si>=0&&!clean?10:4;
+      ctx.lineWidth=si>=0&&!clean?7:4;
       ctx.strokeStyle=si>=0&&!clean?kind(active).c:'rgba(0,0,0,.12)';
       ctx.beginPath();ctx.arc(x,y,AR,0,7);ctx.stroke();
       if(si>=0&&!clean){
@@ -289,7 +301,7 @@ section[hidden]{display:none}
     // link texts
     links.forEach(l=>{
       if(!l.text||kind(l.k).on===false)return;const g=geo(l);if(!g)return;
-      halo(l.text,g.lab.x,g.lab.y,'bold 32px "Noto Sans KR",sans-serif',kind(l.k).c);
+      halo(l.text,g.lab.x,g.lab.y,'bold 32px "Noto Sans KR",sans-serif',l.tc||kind(l.k).c);
     });
     // free texts
     tbox=[];
@@ -300,14 +312,14 @@ section[hidden]{display:none}
     });
 
     if(!clean&&sel.length>=2){
-      ctx.globalAlpha=.55;halo('원 안의 빈 곳을 누르면 연결 ('+sel.length+'개)',CX,CY,'bold 38px "Noto Sans KR",sans-serif','#2f5bea');ctx.globalAlpha=1;
+      ctx.globalAlpha=.45;halo('원 안의 빈 곳을 누르면 연결 ('+sel.length+'개)',CX,CY,'bold 38px "Noto Sans KR",sans-serif','#6a7385');ctx.globalAlpha=1;
     }
     // handle for selected link
     if(!clean&&selLink!=null){
       const l=links.find(q=>q.id===selLink),g=l&&geo(l);
       if(g&&g.hd){
-        ctx.fillStyle='#2f5bea';ctx.strokeStyle='#fff';ctx.lineWidth=4;
-        ctx.beginPath();ctx.arc(g.hd.x,g.hd.y,16,0,7);ctx.fill();ctx.stroke();
+        ctx.fillStyle='#2f5bea';ctx.strokeStyle='#fff';ctx.lineWidth=7;
+        ctx.beginPath();ctx.arc(g.hd.x,g.hd.y,40,0,7);ctx.fill();ctx.stroke();
       }
     }
 
@@ -375,37 +387,56 @@ section[hidden]{display:none}
     });
   }
   function renderLinks(){
+    renderEditor();
     const box=$('links');box.innerHTML='';
     if(!links.length){box.innerHTML='<p class="hint">아직 연결이 없습니다.</p>';return;}
     links.forEach((l,i)=>{
       const d=document.createElement('div');d.className='item'+(l.id===selLink?' sel':'');
-      d.style.flexWrap='wrap';
-      const top=document.createElement('div');top.className='row';top.style.width='100%';
       const sw=document.createElement('span');sw.style.cssText='width:14px;height:14px;border-radius:3px;flex:none;background:'+kind(l.k).c;
       const lab=document.createElement('span');lab.style.cssText='flex:1;min-width:0;cursor:pointer';
-      const nms=l.n.map(nameOf);
-      lab.textContent=l.n.length===1?nms[0]+' (링)':nms.join(l.n.length===2&&l.ar?(l.ar===2?' ↔ ':' → '):' · ');
-      lab.onclick=()=>{selLink=selLink===l.id?null:l.id;renderLinks();draw();};
-      top.append(sw,lab);
-      if(l.mid)top.append(mk('직선',()=>{l.mid=null;draw();renderLinks();},'직선/원위치'));
-      top.append(mk('✕',()=>{links.splice(i,1);if(selLink===l.id)selLink=null;renderLinks();draw();},'연결 삭제'));
-      const opt=document.createElement('div');opt.className='row';opt.style.cssText='width:100%;padding-left:20px';
-      const ks=document.createElement('select');ks.style.cssText='flex:1;min-width:0';ks.title='선 종류';
-      legend.forEach(k=>{const o=document.createElement('option');o.value=k.id;o.textContent=k.t||'(이름 없음)';ks.appendChild(o);});
-      ks.value=l.k;ks.onchange=()=>{l.k=+ks.value;renderLinks();draw();};
-      opt.append(ks);
-      if(l.n.length===2){
-        const s=document.createElement('select');
-        s.innerHTML='<option value="0">선</option><option value="1">→</option><option value="2">↔</option>';
-        s.value=l.ar;s.onchange=()=>{l.ar=+s.value;draw();renderLinks();};
-        opt.append(s);
-      }
-      const sub=document.createElement('div');sub.className='row';sub.style.cssText='width:100%;padding-left:20px';
-      const tx=document.createElement('textarea');tx.rows=2;tx.placeholder='텍스트 (Enter로 줄바꿈)';tx.value=l.text||'';
-      tx.oninput=()=>{l.text=tx.value;draw();};
-      sub.append(tx);
-      d.append(top,opt,sub);box.appendChild(d);
+      lab.textContent=linkName(l);
+      lab.onclick=()=>{selLink=l.id;renderLinks();draw();};
+      d.append(sw,lab,mk('✕',()=>{links.splice(i,1);if(selLink===l.id)selLink=null;renderLinks();draw();},'연결 삭제'));
+      box.appendChild(d);
     });
+  }
+  function linkName(l){
+    const n=l.n.map(nameOf);
+    return l.n.length===1?n[0]+' (둘레 선)':n.join(l.n.length===2?(l.ar===2?' ↔ ':l.ar===1?' → ':' – '):' · ');
+  }
+  function renderEditor(){
+    const box=$('linkEd'),l=links.find(q=>q.id===selLink);
+    box.innerHTML='';
+    if(!l){box.hidden=true;return;}
+    box.hidden=false;
+    const hd=document.createElement('div');hd.className='row';
+    const sw=document.createElement('span');sw.style.cssText='width:14px;height:14px;border-radius:3px;flex:none;background:'+kind(l.k).c;
+    const ti=document.createElement('b');ti.style.cssText='flex:1;min-width:0';ti.textContent=linkName(l);
+    hd.append(sw,ti);
+    if(l.mid)hd.append(mk('직선',()=>{l.mid=null;draw();renderLinks();},'직선으로'));
+    hd.append(mk('삭제',()=>{links=links.filter(q=>q!==l);selLink=null;renderLinks();draw();},'연결 삭제'),
+              mk('닫기',()=>{selLink=null;renderLinks();draw();},'닫기'));
+    const r2=document.createElement('div');r2.className='row';
+    const ks=document.createElement('select');ks.style.cssText='flex:1;min-width:0';ks.title='선 종류';
+    legend.forEach(k=>{const o=document.createElement('option');o.value=k.id;o.textContent=k.t||'(이름 없음)';ks.appendChild(o);});
+    ks.value=l.k;ks.onchange=()=>{l.k=+ks.value;renderLinks();draw();};
+    r2.append(ks);
+    if(l.n.length>=2){
+      const AO=l.n.length===2?[['0','선'],['1','→'],['2','↔']]:[['0','화살표 없음'],['1','마지막 원으로 →'],['2','모든 원으로 →'],['3','중심으로 →']];
+      const as=document.createElement('select');as.title='화살표';
+      as.innerHTML=AO.map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('');
+      as.value=l.ar;as.onchange=()=>{l.ar=+as.value;renderLinks();draw();};
+      r2.append(as);
+    }
+    const r3=document.createElement('div');r3.className='row';
+    const tx=document.createElement('textarea');tx.rows=2;tx.placeholder='텍스트 (Enter로 줄바꿈)';tx.value=l.text||'';
+    tx.oninput=()=>{l.text=tx.value;draw();};
+    const tc=document.createElement('input');tc.type='color';tc.title='텍스트 색';
+    tc.style.cssText='width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;flex:none';
+    tc.value=l.tc||kind(l.k).c;tc.oninput=()=>{l.tc=tc.value;draw();};
+    r3.append(tx,tc);
+    if(l.tc)r3.append(mk('↺',()=>{l.tc=null;renderLinks();draw();},'텍스트 색을 선 색으로'));
+    box.append(hd,r2,r3);
   }
   function renderTexts(){
     const box=$('texts');box.innerHTML='';
@@ -456,10 +487,10 @@ section[hidden]{display:none}
 
   function connect(){
     if(sel.length<2)return;
-    const ar=sel.length===2?+$('arrowSel').value:0;
+    const ar=0;
     const key=[...sel].sort().join();
     const ex=links.find(l=>[...l.n].sort().join()===key);
-    if(ex){ex.k=active;ex.ar=ar;if(ex.n.length===2)ex.n=[...sel];selLink=ex.id;}
+    if(ex){ex.k=active;if(ex.n.length===2)ex.n=[...sel];selLink=ex.id;}
     else{const l={id:nextL++,n:[...sel],k:active,ar,text:'',mid:null};links.push(l);selLink=l.id;}
     $('status').textContent='연결됨: '+sel.map(nameOf).join(' – ')+' · '+kind(active).t;
     sel=[];updSel();renderLinks();draw();
@@ -484,6 +515,22 @@ section[hidden]{display:none}
 
   /* ---------- canvas interaction ---------- */
   function mpos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
+  function hitLink(m){
+    let best=null,bd=34;
+    const ds=(p,q)=>{const dx=q.x-p.x,dy=q.y-p.y,L=dx*dx+dy*dy||1;let t=((m.x-p.x)*dx+(m.y-p.y)*dy)/L;t=Math.max(0,Math.min(1,t));return Math.hypot(m.x-(p.x+t*dx),m.y-(p.y+t*dy));};
+    links.forEach(l=>{
+      if(kind(l.k).on===false)return;const g=geo(l);if(!g)return;let d=1e9;
+      if(g.t===1)d=Math.abs(Math.hypot(m.x-g.p.x,m.y-g.p.y)-g.r);
+      else if(g.t===2){
+        let prev=g.a;
+        for(let i=1;i<=40;i++){const t=i/40,u=1-t;
+          const q=g.c?{x:u*u*g.a.x+2*u*t*g.c.x+t*t*g.b.x,y:u*u*g.a.y+2*u*t*g.c.y+t*t*g.b.y}:{x:g.a.x+(g.b.x-g.a.x)*t,y:g.a.y+(g.b.y-g.a.y)*t};
+          d=Math.min(d,ds(prev,q));prev=q;}
+      }else g.ps.forEach(p=>{d=Math.min(d,ds(p,g.m));});
+      if(d<bd){bd=d;best=l;}
+    });
+    return best;
+  }
   cv.addEventListener('pointerdown',e=>{
     const m=mpos(e);
     // 1) free text
@@ -496,7 +543,7 @@ section[hidden]{display:none}
     // 2) handle of selected link
     if(selLink!=null){
       const l=links.find(q=>q.id===selLink),g=l&&geo(l);
-      if(g&&g.hd&&Math.hypot(m.x-g.hd.x,m.y-g.hd.y)<=26){
+      if(g&&g.hd&&Math.hypot(m.x-g.hd.x,m.y-g.hd.y)<=75){
         drag={type:'mid',l};cv.setPointerCapture(e.pointerId);return;
       }
     }
@@ -504,8 +551,14 @@ section[hidden]{display:none}
     let hit=null;
     V.forEach(c=>{const p=P.get(c.id);if(Math.hypot(m.x-p.x,m.y-p.y)<=AR)hit=c.id;});
     if(hit==null){
-      if(sel.length>=2&&Math.hypot(m.x-CX,m.y-CY)<R){connect();return;}
-      sel=[];
+      if(sel.length>=2){
+        if(Math.hypot(m.x-CX,m.y-CY)<R){connect();return;}
+        sel=[];
+      }else{
+        const hl=hitLink(m);
+        if(hl){selLink=hl.id;sel=[];updSel();renderLinks();draw();return;}
+        sel=[];
+      }
     }
     else{const i=sel.indexOf(hit);if(i>=0)sel.splice(i,1);else sel.push(hit);}
     updSel();draw();
@@ -530,12 +583,13 @@ section[hidden]{display:none}
     },'image/png');
   };
 
-  function showTab(t){
-    document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
-    document.querySelectorAll('.tab-sec').forEach(x=>x.hidden=x.dataset.tab!==t);
+  let curTab=null;
+  function applyTab(){
+    document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===curTab));
+    document.querySelectorAll('.tab-sec').forEach(x=>x.hidden=x.dataset.tab!==curTab);
   }
-  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-  showTab('chars');
+  document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{curTab=curTab===b.dataset.tab?null:b.dataset.tab;applyTab();});
+  curTab=matchMedia('(max-width:860px)').matches?null:'chars';applyTab();
   $('showLogo').onchange=()=>draw();
   loadImg(LOGO_SRC,im=>{logoImg=im;draw();});
   initChars();renderLegend();refresh();
