@@ -605,12 +605,14 @@ button{-webkit-tap-highlight-color:transparent}
   cv.addEventListener('pointercancel',endDrag);
 
   $('saveBtn').onclick=()=>{
+    const OUT=2000;
+    cv.width=cv.height=OUT;ctx.scale(OUT/W,OUT/H);
     draw(true);
     cv.toBlob(b=>{
       const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='relationship-chart.png';a.click();
       setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-      draw();
     },'image/png');
+    cv.width=cv.height=W;draw();
   };
 
   const panel=document.querySelector('.panel'),mq=window.matchMedia?matchMedia('(max-width:860px)'):{matches:false};
