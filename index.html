@@ -16,15 +16,16 @@
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:15px/1.5 "Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
 .app{display:grid;grid-template-columns:360px 1fr;gap:16px;max-width:1320px;margin:0 auto;padding:16px}
-#mspacer,.grip{display:none}
 @media(max-width:860px){
-  .app{grid-template-columns:1fr;gap:0;padding:0 12px 60vh}
-  .panel{position:fixed;top:0;left:0;right:0;z-index:30;border-radius:0 0 12px 12px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
-  #mspacer{display:block;height:calc(var(--full,0px) + 8px)}
-  .stage{position:sticky;top:calc(var(--hmin,0px) + 8px);z-index:10;background:var(--bg);max-height:calc(100vh - var(--hmin,0px) - 8px);overflow-y:auto}
+  html,body{overflow-anchor:none}
+  .app{grid-template-columns:1fr;gap:0;padding:0 12px 100vh;align-items:start}
+  .panel{position:sticky;top:0;z-index:30;height:var(--ph,auto);max-height:none;margin:0 -12px;border-radius:0 0 12px 12px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+  .stage{position:sticky;top:calc(var(--ph,0px) + 8px);margin-top:8px;z-index:10;background:var(--bg);max-height:calc(100vh - var(--ph,0px) - 16px);overflow-y:auto}
   .grip{display:block;position:sticky;bottom:0;height:22px;touch-action:none;background:var(--panel);margin:0 -14px -14px;cursor:ns-resize;flex:none}
   .grip::after{content:"";display:block;width:44px;height:5px;border-radius:3px;background:var(--line);margin:9px auto 0}
 }
+.grip{display:none}
+@media(max-width:860px){.grip{display:block}}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:14px;align-self:start;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto}
 h1{font-size:18px;margin:0}
 h2{font-size:14px;margin:0 0 8px}
@@ -129,7 +130,6 @@ button{-webkit-tap-highlight-color:transparent}
     </section>
     <div class="grip" id="grip" aria-hidden="true"></div>
   </aside>
-  <div id="mspacer"></div>
 
   <main class="stage">
     <div class="cvw"><canvas id="cv" width="1600" height="1600"></canvas><button id="ringBtn" class="ringBtn" type="button"></button></div>
@@ -142,7 +142,7 @@ button{-webkit-tap-highlight-color:transparent}
 (function(){
   /* ===== 설정 (여기만 고치면 됩니다) ===== */
   const LOGO_SRC = 'images/logo.png';   // 오른쪽 위 로고 (사용자가 변경 불가, 켜기/끄기만 가능)
-  const FIXED_CREDIT = '';          // 크레딧 둘째 줄: 사용자가 지울 수 없는 고정 문구
+  const FIXED_CREDIT = 'made by k';          // 크레딧 둘째 줄: 사용자가 지울 수 없는 고정 문구
   const DEFAULT_COUNT = 19;         // 전체 원 개수
   const VISIBLE_COUNT = 15;         // 처음부터 보이는 개수 (나머지는 "추가" 원)
   const DEFAULT_CHARS = Array.from({length:DEFAULT_COUNT},(_,i)=>({
@@ -271,7 +271,6 @@ button{-webkit-tap-highlight-color:transparent}
         });
         ctx.stroke();
         ctx.globalAlpha=1;hb.forEach(h=>head(h[0],h[1],col));ctx.globalAlpha=.85;
-        ctx.fillStyle=col;ctx.beginPath();ctx.arc(g.m.x,g.m.y,10,0,7);ctx.fill();
       }
     });
     ctx.globalAlpha=1;
@@ -340,7 +339,7 @@ button{-webkit-tap-highlight-color:transparent}
     ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='30px "Noto Sans KR","Malgun Gothic",sans-serif';
     legend.filter(l=>l.on!==false).forEach((l,i)=>{
       const y=60+i*46;
-      ctx.fillStyle=l.c;ctx.beginPath();ctx.roundRect(30,y-17,34,34,6);ctx.fill();
+      ctx.fillStyle=l.c;ctx.beginPath();if(ctx.roundRect)ctx.roundRect(30,y-17,34,34,6);else ctx.rect(30,y-17,34,34);ctx.fill();
       ctx.fillStyle=l.c;ctx.fillText(l.t,80,y);
     });
 
@@ -348,7 +347,7 @@ button{-webkit-tap-highlight-color:transparent}
     const cr=$('credit').value.trim();
     ctx.fillStyle='#9aa0aa';ctx.font='34px sans-serif';ctx.textAlign='right';ctx.textBaseline='bottom';
     if(FIXED_CREDIT)ctx.fillText(FIXED_CREDIT,W-40,H-30);
-    if(cr)ctx.fillText(cr,W-40,H-30-(made by @with__cissy?44:0));
+    if(cr)ctx.fillText(cr,W-40,H-30-(FIXED_CREDIT?44:0));
 
     if(!n){
       ctx.fillStyle='#9aa0aa';ctx.font='36px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
@@ -405,6 +404,7 @@ button{-webkit-tap-highlight-color:transparent}
       const sw=document.createElement('span');sw.style.cssText='width:14px;height:14px;border-radius:3px;flex:none;background:'+kind(l.k).c;
       const lab=document.createElement('span');lab.style.cssText='flex:1;min-width:0;cursor:pointer';
       lab.textContent=linkName(l);
+      if(l.text){const sm=document.createElement('small');sm.style.cssText='display:block;color:var(--mute);white-space:pre-line;overflow-wrap:anywhere';sm.textContent=l.text;lab.append(sm);}
       lab.onclick=()=>{selLink=l.id;selText=null;renderLinks();draw();};
       d.append(sw,lab,mk('✕',()=>{links.splice(i,1);if(selLink===l.id)selLink=null;renderLinks();draw();},'연결 삭제'));
       box.appendChild(d);
@@ -613,25 +613,28 @@ button{-webkit-tap-highlight-color:transparent}
     },'image/png');
   };
 
-  const panel=document.querySelector('.panel'),mq=matchMedia('(max-width:860px)');
+  const panel=document.querySelector('.panel'),mq=window.matchMedia?matchMedia('(max-width:860px)'):{matches:false};
   let mFull=0,mMin=0;
-  function onScroll(){
-    if(!mq.matches)return;
-    panel.style.maxHeight=Math.min(mFull,Math.max(mMin,mFull-window.scrollY))+'px';
+  function setPh(){
+    const rs=document.documentElement.style;
+    if(!mq.matches){rs.removeProperty('--ph');return;}
+    rs.setProperty('--ph',Math.min(mFull,Math.max(mMin,mFull-(window.scrollY||0)))+'px');
   }
   function mobLayout(){
-    const rs=document.documentElement.style;
-    if(!mq.matches){panel.style.maxHeight='';rs.removeProperty('--full');rs.removeProperty('--hmin');return;}
-    panel.style.maxHeight='none';
-    mFull=Math.min(panel.offsetHeight,Math.round(innerHeight*.55));mMin=Math.min(mFull,150);
-    rs.setProperty('--full',mFull+'px');rs.setProperty('--hmin',mMin+'px');
-    onScroll();
+    try{
+      if(!mq.matches){setPh();return;}
+      panel.style.height='auto';
+      const nat=panel.offsetHeight;
+      panel.style.height='';
+      mFull=Math.min(nat,Math.round(innerHeight*.55));mMin=Math.min(mFull,150);
+      setPh();
+    }catch(err){}
   }
-  addEventListener('scroll',onScroll,{passive:true});
-  addEventListener('resize',mobLayout);
-  mq.addEventListener('change',mobLayout);
+  window.addEventListener('scroll',setPh,{passive:true});
+  window.addEventListener('resize',mobLayout);
+  try{if(mq.addEventListener)mq.addEventListener('change',mobLayout);else if(mq.addListener)mq.addListener(mobLayout);}catch(err){}
   const grip=$('grip');let gs=null;
-  grip.addEventListener('pointerdown',e=>{gs={y:e.clientY,s:window.scrollY};grip.setPointerCapture(e.pointerId);});
+  grip.addEventListener('pointerdown',e=>{gs={y:e.clientY,s:window.scrollY};try{grip.setPointerCapture(e.pointerId);}catch(err){}});
   grip.addEventListener('pointermove',e=>{if(gs)window.scrollTo(0,gs.s+(gs.y-e.clientY));});
   grip.addEventListener('pointerup',()=>{gs=null;});
   grip.addEventListener('pointercancel',()=>{gs=null;});
