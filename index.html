@@ -89,7 +89,7 @@ button{-webkit-tap-highlight-color:transparent}
       <input type="file" id="fileOne" accept="image/*" hidden>
       <p class="hint" style="margin-top:6px">체크박스로 각 원을 보이고 숨깁니다. 🖼 이미지 변경, ↺ 기본 이미지로. 이미지가 없으면 이름이 원 안에 표시됩니다.</p>
       <div class="list" id="chars" style="margin-top:8px;max-height:55vh"></div>
-      <label class="chk" style="margin-top:8px"><input type="checkbox" id="showNames"> 원 위에 이름 표시</label>
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="showNames"> 원에 이름 표시</label>
     </section>
 
     <section class="tab-sec" data-tab="kinds">
@@ -149,11 +149,18 @@ button{-webkit-tap-highlight-color:transparent}
   /* ===== 설정 (여기만 고치면 됩니다) ===== */
   const LOGO_SRC = 'images/logo.png';   // 오른쪽 위 로고 (사용자가 변경 불가, 켜기/끄기만 가능)
   const FIXED_CREDIT = 'akakak11096.github.io/splk';          // 크레딧 둘째 줄: 사용자가 지울 수 없는 고정 문구
-  const DEFAULT_COUNT = 19;         // 전체 원 개수
   const VISIBLE_COUNT = 15;         // 처음부터 보이는 개수 (나머지는 "추가" 원)
-  const DEFAULT_CHARS = Array.from({length:DEFAULT_COUNT},(_,i)=>({
-    name:'캐릭터'+(i+1),                                   // ← 이름 지정
-    src:'images/'+String(i+1).padStart(2,'0')+'.webp'       // ← 이미지 경로 지정
+  const DEFAULT_NAMES = [           // ← 기본 원 19개의 이름 (순서대로 images/01.webp ~ 19.webp)
+    '네오','휴','디디','라스카','란카',
+    '라프타','슈우','노아',
+'리제','샹','니콜라','수',
+'엘리','애시','렌트',
+    '루티','메이카','캐릭터18','캐릭터19'
+  ];
+  const IMAGE_DIR = 'images/', IMAGE_EXT = '.webp';   // ← 이미지 폴더/확장자
+  const DEFAULT_CHARS = DEFAULT_NAMES.map((name,i)=>({
+    name,
+    src:IMAGE_DIR+String(i+1).padStart(2,'0')+IMAGE_EXT
   }));
   /* ===================================== */
 
