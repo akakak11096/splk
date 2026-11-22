@@ -162,12 +162,12 @@ button{-webkit-tap-highlight-color:transparent}
   const $=id=>document.getElementById(id);
 
   let legend=[
-    {id:1,c:'#e53935',t:'최애 커플링'},
-    {id:2,c:'#fb8c00',t:'선호 커플링'},
+    {id:1,c:'#ff4542',t:'최애 커플링'},
+    {id:2,c:'#ff9147',t:'선호 커플링'},
     {id:3,c:'#fbc02d',t:'좋아하는 조합(커플링O)'},
-    {id:4,c:'#2ea043',t:'좋아하는 조합(커플링X)'},
-    {id:5,c:'#2f6bff',t:'불호지만 스루 가능'},
-    {id:6,c:'#111111',t:'지뢰, 유입거부'}
+    {id:4,c:'#85b78e',t:'좋아하는 조합(커플링X)'},
+    {id:5,c:'#7b9bea',t:'불호지만 스루 가능'},
+    {id:6,c:'#737373',t:'지뢰, 유입거부'}
   ];
   let nextK=7,nextL=1,nextC=1,nextT=1;
   let chars=[],links=[],texts=[];
@@ -241,9 +241,19 @@ button{-webkit-tap-highlight-color:transparent}
     if(ps.some(p=>!p))return null;
     if(ps.length===1){const p=ps[0],r=AR+3;return{t:1,p,r,lab:{x:p.x,y:p.y-r-24},hd:null};}
     if(ps.length===2){
-      const[a,b]=ps,mm={x:(a.x+b.x)/2,y:(a.y+b.y)/2},m=l.mid||mm;
-      const c=l.mid?{x:2*m.x-mm.x,y:2*m.y-mm.y}:null;
-      return{t:2,a,b,c,lab:m,hd:m};
+      const[a,b]=ps,mm={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+      let m=l.mid;
+      if(!m){
+        const key=[...l.n].sort().join(),grp=links.filter(q=>q.n.length===2&&[...q.n].sort().join()===key);
+        if(grp.length>1){
+          const off=(grp.indexOf(l)-(grp.length-1)/2)*80;
+          const lo=P.get(Math.min(...l.n)),hi=P.get(Math.max(...l.n));
+          const dx=hi.x-lo.x,dy=hi.y-lo.y,L=Math.hypot(dx,dy)||1;
+          m={x:mm.x-dy/L*off,y:mm.y+dx/L*off};
+        }
+      }
+      const c=m?{x:2*m.x-mm.x,y:2*m.y-mm.y}:null;
+      return{t:2,a,b,c,lab:m||mm,hd:m||mm};
     }
     const m=l.mid||{x:ps.reduce((s,p)=>s+p.x,0)/ps.length,y:ps.reduce((s,p)=>s+p.y,0)/ps.length};
     return{t:3,ps,m,lab:{x:m.x,y:m.y-26},hd:m};
@@ -294,32 +304,35 @@ button{-webkit-tap-highlight-color:transparent}
         for(let i=0;i<=N;i++){const t=i/N,u=1-t;
           pts.push(g.c?{x:u*u*g.a.x+2*u*t*g.c.x+t*t*g.b.x,y:u*u*g.a.y+2*u*t*g.c.y+t*t*g.b.y}:{x:g.a.x+(g.b.x-g.a.x)*t,y:g.a.y+(g.b.y-g.a.y)*t});}
         const hasA=ahas(l,l.n[0]),hasB=ahas(l,l.n[1]);
+        const colA=kind((l.ak&&l.ak[l.n[0]])||l.k).c,colB=kind((l.ak&&l.ak[l.n[1]])||l.k).c;
         let s0=0,e0=N;
         if(hasB){
           let i=N;while(i>0&&D(pts[i],g.b)<=AR+3)i--;
           let k=i;while(k>0&&D(pts[k],pts[i])<28)k--;
-          if(k>0&&k<i){hs.push([pts[i],pts[k]]);e0=k;}
+          if(k>0&&k<i){hs.push([pts[i],pts[k],colB]);e0=k;}
         }
         if(hasA){
           let i=0;while(i<N&&D(pts[i],g.a)<=AR+3)i++;
           let k=i;while(k<N&&D(pts[k],pts[i])<28)k++;
-          if(k<N&&k>i){hs.push([pts[i],pts[k]]);s0=k;}
+          if(k<N&&k>i){hs.push([pts[i],pts[k],colA]);s0=k;}
         }
-        if(s0<e0){ctx.moveTo(pts[s0].x,pts[s0].y);for(let i=s0+1;i<=e0;i++)ctx.lineTo(pts[i].x,pts[i].y);}
-        ctx.stroke();
-        ctx.globalAlpha=1;hs.forEach(h=>head(h[0],h[1],col));ctx.globalAlpha=.85;
+        if(s0<e0){
+          const poly=(i0,i1)=>{ctx.beginPath();ctx.moveTo(pts[i0].x,pts[i0].y);for(let i=i0+1;i<=i1;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();};
+          ctx.strokeStyle=col;poly(s0,e0);
+        }
+        ctx.globalAlpha=1;hs.forEach(h=>head(h[0],h[1],h[2]));ctx.globalAlpha=.85;
       }else{
         const hb=[];
         g.ps.forEach((p,pi)=>{
           let a={x:p.x,y:p.y},b={x:g.m.x,y:g.m.y};
           const d=Math.hypot(b.x-a.x,b.y-a.y)||1,ux=(b.x-a.x)/d,uy=(b.y-a.y)/d;
+          const bc=kind((l.ak&&l.ak[l.n[pi]])||l.k).c;
           if(ahas(l,l.n[pi])&&d>AR+75){
-            const tip={x:a.x+ux*(AR+3),y:a.y+uy*(AR+3)},base={x:tip.x+ux*28,y:tip.y+uy*28};hb.push([tip,base]);a=base;
+            const tip={x:a.x+ux*(AR+3),y:a.y+uy*(AR+3)},base={x:tip.x+ux*28,y:tip.y+uy*28};hb.push([tip,base,bc]);a=base;
           }
-          ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+          ctx.beginPath();ctx.strokeStyle=col;ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
         });
-        ctx.stroke();
-        ctx.globalAlpha=1;hb.forEach(h=>head(h[0],h[1],col));ctx.globalAlpha=.85;
+        ctx.globalAlpha=1;hb.forEach(h=>head(h[0],h[1],h[2]));ctx.globalAlpha=.85;
       }
     });
     ctx.globalAlpha=1;
@@ -358,13 +371,13 @@ button{-webkit-tap-highlight-color:transparent}
     // link texts
     links.forEach(l=>{
       if(!l.text||kind(l.k).on===false)return;const g=geo(l);if(!g)return;
-      halo(l.text,g.lab.x,g.lab.y,'bold 32px "Noto Sans KR",sans-serif',l.tc||kind(l.k).c);
+      halo(l.text,g.lab.x,g.lab.y,(l.bd===false?'':'bold ')+(l.sz||32)+'px "Noto Sans KR",sans-serif',l.tc||kind(l.k).c);
     });
     // free texts
     tbox=[];
     texts.forEach(t=>{
       const s=t.t||'텍스트';
-      const bb=halo(s,t.x,t.y,'bold 36px "Noto Sans KR",sans-serif','#222');
+      const bb=halo(s,t.x,t.y,(t.bd===false?'':'bold ')+(t.sz||36)+'px "Noto Sans KR",sans-serif',t.tc||'#222');
       tbox.push({t,w:bb.w+20,h:bb.h+10});
       if(!clean&&selText===t.id){ctx.save();ctx.setLineDash([12,8]);ctx.strokeStyle='#2f5bea';ctx.lineWidth=3;ctx.strokeRect(t.x-(bb.w+20)/2,t.y-(bb.h+10)/2,bb.w+20,bb.h+10);ctx.restore();}
     });
@@ -465,6 +478,22 @@ button{-webkit-tap-highlight-color:transparent}
     if(l.n.length===2){const a=ahas(l,l.n[0]),b=ahas(l,l.n[1]);return n.join(a&&b?' ↔ ':b?' → ':a?' ← ':' – ');}
     return n.join(' · ');
   }
+  function styleRow(o,defSz,withColor){
+    const row=document.createElement('div');row.className='row';
+    if(withColor){
+      const c=document.createElement('input');c.type='color';c.title='글씨 색';
+      c.style.cssText='width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;flex:none';
+      c.value=o.tc||'#222222';c.oninput=()=>{o.tc=c.value;draw();};row.append(c);
+    }
+    const lb=document.createElement('span');lb.textContent='크기';
+    const rg=document.createElement('input');rg.type='range';rg.min=12;rg.max=120;rg.step=2;rg.value=o.sz||defSz;rg.style.cssText='flex:1;min-width:0';
+    const nv=document.createElement('span');nv.textContent=rg.value;nv.style.minWidth='26px';
+    rg.oninput=()=>{o.sz=+rg.value;nv.textContent=rg.value;draw();};
+    const bl=document.createElement('label');bl.className='chk';
+    const bc=document.createElement('input');bc.type='checkbox';bc.checked=o.bd!==false;bc.onchange=()=>{o.bd=bc.checked;draw();};
+    bl.append(bc,'굵게');
+    row.append(lb,rg,nv,bl);return row;
+  }
   function renderEditor(){
     const box=$('linkEd');
     box.innerHTML='';
@@ -477,7 +506,7 @@ button{-webkit-tap-highlight-color:transparent}
                mk('닫기',()=>{selText=null;renderLinks();draw();},'닫기'));
       const ta=document.createElement('textarea');ta.rows=2;ta.value=tt.t;ta.placeholder='텍스트 (Enter로 줄바꿈)';
       ta.oninput=()=>{tt.t=ta.value;draw();renderTexts();};
-      box.append(h,ta);return;
+      box.append(h,ta,styleRow(tt,36,true));return;
     }
     const l=links.find(q=>q.id===selLink);
     if(!l){box.hidden=true;return;}
@@ -496,13 +525,20 @@ button{-webkit-tap-highlight-color:transparent}
     r2.append(ks);
     let r2b=null;
     if(l.n.length>=2){
-      r2b=document.createElement('div');r2b.className='wrap';r2b.style.alignItems='center';
-      const t=document.createElement('span');t.textContent='화살표 대상:';r2b.append(t);
+      r2b=document.createElement('div');r2b.style.cssText='display:flex;flex-direction:column;gap:4px';
+      const t=document.createElement('small');t.className='hint';t.textContent='원 쪽마다 화살표 · 촉 색 (선 종류 색 중에서 선택)';r2b.append(t);
       l.n.forEach(id=>{
-        const lb=document.createElement('label');lb.className='chk';
+        const row=document.createElement('div');row.className='row';
+        const lb=document.createElement('label');lb.className='chk';lb.style.cssText='flex:1;min-width:0';
         const cb=document.createElement('input');cb.type='checkbox';cb.checked=ahas(l,id);
         cb.onchange=()=>{l.ah=(l.ah||[]).filter(x=>x!==id);if(cb.checked)l.ah.push(id);renderLinks();draw();};
-        lb.append(cb,nameOf(id));r2b.append(lb);
+        lb.append(cb,'→ '+nameOf(id));
+        const ksel=document.createElement('select');ksel.title='이 원 쪽 화살표 촉 색';ksel.style.cssText='max-width:55%';
+        const o0=document.createElement('option');o0.value='';o0.textContent='선과 동일';ksel.appendChild(o0);
+        legend.forEach(k=>{const o=document.createElement('option');o.value=k.id;o.textContent=k.t||'(이름 없음)';ksel.appendChild(o);});
+        ksel.value=(l.ak&&l.ak[id])||'';
+        ksel.onchange=()=>{l.ak=l.ak||{};if(ksel.value)l.ak[id]=+ksel.value;else delete l.ak[id];renderLinks();draw();};
+        row.append(lb,ksel);r2b.append(row);
       });
     }
     const r3=document.createElement('div');r3.className='row';
@@ -513,7 +549,7 @@ button{-webkit-tap-highlight-color:transparent}
     tc.value=l.tc||kind(l.k).c;tc.oninput=()=>{l.tc=tc.value;draw();};
     r3.append(tx,tc);
     if(l.tc)r3.append(mk('↺',()=>{l.tc=null;renderLinks();draw();},'텍스트 색을 선 색으로'));
-    box.append(hd,r2,...(r2b?[r2b]:[]),r3);
+    box.append(hd,r2,...(r2b?[r2b]:[]),r3,styleRow(l,32,false));
   }
   function renderTexts(){
     const box=$('texts');box.innerHTML='';
@@ -568,10 +604,7 @@ button{-webkit-tap-highlight-color:transparent}
   function connect(){
     if(sel.length<2)return;
     const ar=0;
-    const key=[...sel].sort().join();
-    const ex=links.find(l=>[...l.n].sort().join()===key);
-    if(ex){ex.k=active;if(ex.n.length===2)ex.n=[...sel];selLink=ex.id;}
-    else{const l={id:nextL++,n:[...sel],k:active,ah:[],text:'',mid:null};links.push(l);selLink=l.id;}
+    const l={id:nextL++,n:[...sel],k:active,ah:[],ak:{},text:'',mid:null};links.push(l);selLink=l.id;
     selText=null;
     $('status').textContent='연결됨: '+sel.map(nameOf).join(' – ')+' · '+kind(active).t;
     sel=[];updSel();renderLinks();draw();
