@@ -127,6 +127,12 @@ button{-webkit-tap-highlight-color:transparent}
       <div class="wrap" style="margin-top:8px">
         <button class="primary" id="saveBtn">PNG로 저장</button>
       </div>
+      <div class="wrap" style="margin-top:8px">
+        <button id="expBtn">작업 내보내기 (JSON)</button>
+        <button id="impBtn">작업 불러오기</button>
+      </div>
+      <input type="file" id="impFile" accept=".json,application/json" hidden>
+      <p class="hint" style="margin-top:6px">작업 내용은 이 브라우저에 자동 저장됩니다. 브라우저 데이터를 지우거나 다른 기기에서 이어서 쓰려면 JSON으로 내보내 두세요.</p>
     </section>
     <div class="grip" id="grip" aria-hidden="true"></div>
   </aside>
@@ -175,6 +181,48 @@ button{-webkit-tap-highlight-color:transparent}
   function loadImg(src,cb){
     const im=new Image();
     im.onload=()=>cb(im);im.onerror=()=>cb(null);im.src=src;
+  }
+  const KEY='relchart-v1';
+  let saveT=null,ready=false;
+  function snapshot(){
+    return{v:1,
+      chars:chars.map(c=>({id:c.id,name:c.name,on:c.on,extra:!!c.extra,src:c.src||null,cust:c.cust||null})),
+      links,texts,legend,active,next:{k:nextK,l:nextL,c:nextC,t:nextT},
+      showNames:$('showNames').checked,showLogo:$('showLogo').checked,credit:$('credit').value};
+  }
+  function scheduleSave(){
+    if(!ready)return;clearTimeout(saveT);
+    saveT=setTimeout(()=>{
+      try{localStorage.setItem(KEY,JSON.stringify(snapshot()));}
+      catch(err){$('status').textContent='브라우저 저장 공간이 부족해 자동 저장에 실패했어요. JSON으로 내보내 두세요.';}
+    },400);
+  }
+  function restore(d){
+    if(!d||!Array.isArray(d.chars))throw new Error('bad');
+    if(Array.isArray(d.legend)&&d.legend.length)legend=d.legend;
+    links=Array.isArray(d.links)?d.links:[];texts=Array.isArray(d.texts)?d.texts:[];
+    active=legend.some(k=>k.id===d.active)?d.active:legend[0].id;
+    const n=d.next||{};
+    chars=d.chars.map(o=>({id:o.id,name:o.name||'',img:null,src:o.src||null,cust:o.cust||null,on:o.on!==false,extra:!!o.extra}));
+    nextC=Math.max(n.c||1,...chars.map(c=>c.id+1));
+    nextL=Math.max(n.l||1,...links.map(l=>l.id+1));
+    nextT=Math.max(n.t||1,...texts.map(t=>t.id+1));
+    nextK=Math.max(n.k||1,...legend.map(k=>k.id+1));
+    sel=[];selLink=null;selText=null;
+    $('showNames').checked=!!d.showNames;$('showLogo').checked=d.showLogo!==false;$('credit').value=d.credit||'';
+    chars.forEach(c=>{const u=c.cust||c.src;if(u)loadImg(u,im=>{c.img=im;refresh();});});
+    renderLegend();refresh();
+  }
+  function fileToData(f,cb){
+    const r=new FileReader();
+    r.onload=()=>loadImg(r.result,im=>{
+      if(!im){cb(null);return;}
+      const k=Math.min(1,400/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+      cb(c.toDataURL('image/jpeg',.88));
+    });
+    r.onerror=()=>cb(null);r.readAsDataURL(f);
   }
   function initChars(){
     chars=DEFAULT_CHARS.map((d,i)=>({id:nextC++,name:d.name,img:null,src:d.src,on:i<VISIBLE_COUNT,extra:i>=VISIBLE_COUNT}));
@@ -229,6 +277,7 @@ button{-webkit-tap-highlight-color:transparent}
 
   /* ---------- drawing ---------- */
   function draw(clean){
+    if(!clean)scheduleSave();
     layout();updRing(clean);
     ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
     const n=V.length;
@@ -334,7 +383,7 @@ button{-webkit-tap-highlight-color:transparent}
 
     // logo
     const lo=logoImg&&$('showLogo').checked;
-    if(lo){const k=Math.min(200/logoImg.width,110/logoImg.height),lw=logoImg.width*k;ctx.drawImage(logoImg,W-30-lw,25,lw,logoImg.height*k);}
+    if(lo){const k=Math.min(340/logoImg.width,190/logoImg.height),lw=logoImg.width*k;ctx.drawImage(logoImg,W-30-lw,25,lw,logoImg.height*k);}
     // legend
     ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='30px "Noto Sans KR","Malgun Gothic",sans-serif';
     legend.filter(l=>l.on!==false).forEach((l,i)=>{
@@ -389,7 +438,7 @@ button{-webkit-tap-highlight-color:transparent}
       const nm=document.createElement('input');nm.type='text';nm.placeholder='이름 '+(i+1);nm.value=c.name;
       nm.oninput=()=>{c.name=nm.value;draw();renderLinks();updSel();};
       d.append(cb,th,nm,mk('🖼',()=>{pendingId=c.id;$('fileOne').click();},'이미지 변경'));
-      if(c.src)d.append(mk('↺',()=>loadImg(c.src,im=>{c.img=im;refresh();}),'기본 이미지로'));
+      if(c.src)d.append(mk('↺',()=>{c.cust=null;loadImg(c.src,im=>{c.img=im;refresh();});},'기본 이미지로'));
       d.append(mk('↑',()=>move(i,-1),'위로'),mk('↓',()=>move(i,1),'아래로'));
       if(!c.src)d.append(mk('✕',()=>removeChar(c.id),'삭제'));
       box.appendChild(d);
@@ -487,8 +536,11 @@ button{-webkit-tap-highlight-color:transparent}
   function removeChar(id){chars=chars.filter(c=>c.id!==id);links=links.filter(l=>!l.n.includes(id));sel=sel.filter(s=>s!==id);refresh();}
   function addFiles(files){
     [...files].forEach(f=>{
-      loadImg(URL.createObjectURL(f),im=>{
-        if(im){chars.push({id:nextC++,name:f.name.replace(/\.[^.]+$/,''),img:im,src:null,on:true});refresh();}
+      fileToData(f,u=>{
+        if(!u)return;
+        loadImg(u,im=>{
+          if(im){chars.push({id:nextC++,name:f.name.replace(/\.[^.]+$/,''),img:im,src:null,cust:u,on:true});refresh();}
+        });
       });
     });
   }
@@ -496,7 +548,7 @@ button{-webkit-tap-highlight-color:transparent}
   $('file').onchange=e=>{addFiles(e.target.files);e.target.value='';};
   $('fileOne').onchange=e=>{
     const f=e.target.files[0],c=chars.find(q=>q.id===pendingId);e.target.value='';
-    if(f&&c)loadImg(URL.createObjectURL(f),im=>{if(im){c.img=im;refresh();}});
+    if(f&&c)fileToData(f,u=>{if(!u)return;loadImg(u,im=>{if(im){c.cust=u;c.img=im;refresh();}});});
   };
   $('addOne').onclick=()=>{chars.push({id:nextC++,name:'',img:null,src:null,on:true});refresh();};
   $('allBtn').onclick=()=>{const on=!chars.every(c=>c.on);chars.forEach(c=>c.on=on);if(!on)sel=[];refresh();};
@@ -650,7 +702,29 @@ button{-webkit-tap-highlight-color:transparent}
   curTab=matchMedia('(max-width:860px)').matches?null:'chars';applyTab();
   $('showLogo').onchange=()=>draw();
   loadImg(LOGO_SRC,im=>{logoImg=im;draw();});
-  initChars();renderLegend();refresh();
+  $('expBtn').onclick=()=>{
+    const b=new Blob([JSON.stringify(snapshot())],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='relationship-work.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+  $('impBtn').onclick=()=>$('impFile').click();
+  $('impFile').onchange=e=>{
+    const f=e.target.files[0];e.target.value='';if(!f)return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        const d=JSON.parse(r.result);
+        if(!d||!Array.isArray(d.chars))throw new Error('bad');
+        if(!confirm('현재 작업을 이 파일의 내용으로 바꿀까요?'))return;
+        restore(d);$('status').textContent='작업을 불러왔어요.';
+      }catch(err){alert('불러올 수 없는 파일이에요.');}
+    };
+    r.readAsText(f);
+  };
+  let restored=false;
+  try{const raw=localStorage.getItem(KEY);if(raw){restore(JSON.parse(raw));restored=true;}}catch(err){}
+  if(!restored){initChars();renderLegend();refresh();}
+  ready=true;
 })();
 </script>
 </body>
