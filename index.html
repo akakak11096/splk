@@ -226,10 +226,10 @@ button{-webkit-tap-highlight-color:transparent}
     const r=new FileReader();
     r.onload=()=>loadImg(r.result,im=>{
       if(!im){cb(null);return;}
-      const k=Math.min(1,400/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      const k=Math.min(1,600/Math.max(im.width,im.height)),c=document.createElement('canvas');
       c.width=Math.max(1,Math.round(im.width*k));c.height=Math.max(1,Math.round(im.height*k));
       const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
-      cb(c.toDataURL('image/jpeg',.88));
+      cb(c.toDataURL('image/jpeg',.92));
     });
     r.onerror=()=>cb(null);r.readAsDataURL(f);
   }
@@ -246,6 +246,21 @@ button{-webkit-tap-highlight-color:transparent}
     P=new Map();
     ring.forEach((c,i)=>{const th=2*Math.PI*i/n;P.set(c.id,{x:CX+R*Math.sin(th),y:CY-R*Math.cos(th)});});
     if(cc)P.set(cc.id,{x:CX,y:CY});
+  }
+  function fitImg(c,s){
+    const im=c.img,ps=s*cv.width/W;
+    if(ps>=.5)return im;
+    const key=Math.round(ps*1000);
+    if(c._fit&&c._fit.im===im&&c._fit.key===key)return c._fit.cv;
+    let cur=im,w=im.width,h=im.height;
+    const tw=im.width*ps,th=im.height*ps;
+    while(w/2>=tw&&h/2>=th){
+      w=Math.round(w/2);h=Math.round(h/2);
+      const cn=document.createElement('canvas');cn.width=w;cn.height=h;
+      const x=cn.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';
+      x.drawImage(cur,0,0,w,h);cur=cn;
+    }
+    c._fit={im,key,cv:cur};return cur;
   }
   function geo(l){
     const ps=l.n.map(id=>P.get(id));
@@ -300,6 +315,7 @@ button{-webkit-tap-highlight-color:transparent}
   function draw(clean){
     if(!clean)scheduleSave();
     layout();updRing(clean);
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
     ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
     const n=V.length;
 
@@ -355,7 +371,7 @@ button{-webkit-tap-highlight-color:transparent}
       ctx.beginPath();ctx.arc(x,y,AR,0,7);ctx.closePath();ctx.clip();
       if(c.img){
         const s=Math.max(2*AR/c.img.width,2*AR/c.img.height),w=c.img.width*s,h=c.img.height*s;
-        ctx.drawImage(c.img,x-w/2,y-h/2,w,h);
+        ctx.drawImage(fitImg(c,s),x-w/2,y-h/2,w,h);
       }else{
         ctx.fillStyle='#d9dde5';ctx.fillRect(x-AR,y-AR,2*AR,2*AR);
         ctx.fillStyle='#4a5263';ctx.textAlign='center';ctx.textBaseline='middle';
