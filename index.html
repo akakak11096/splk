@@ -57,6 +57,7 @@ textarea{font:inherit;color:var(--ink);background:transparent;border:1px solid v
 .tabs button[aria-selected=true]{background:var(--accent);border-color:var(--accent);color:#fff}
 section[hidden]{display:none}
 .cvw{position:relative}
+.cenSel{transform:translate(-50%,0)}
 
 .ringBtn{position:absolute;transform:translate(-50%,-100%);display:none;white-space:nowrap;opacity:.8;font-size:13px;padding:4px 10px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 #legend input[type=checkbox]{flex:none}
@@ -87,9 +88,9 @@ button{-webkit-tap-highlight-color:transparent}
       </div>
       <input type="file" id="file" accept="image/*" multiple hidden>
       <input type="file" id="fileOne" accept="image/*" hidden>
-      <p class="hint" style="margin-top:6px">체크박스로 각 원을 보이고 숨깁니다. 🖼 이미지 변경, ↺ 기본 이미지로. 이미지가 없으면 이름이 원 안에 표시됩니다.</p>
+      <p class="hint" style="margin-top:6px">체크박스로 각 원을 보이고 숨깁니다. 캔버스에서 원을 하나 누르면 "◎ 가운데로" 버튼이 떠서 그 원을 한가운데에 놓을 수 있어요. 🖼 이미지 변경, ↺ 기본 이미지로. 이미지가 없으면 이름이 원 안에 표시됩니다.</p>
       <div class="list" id="chars" style="margin-top:8px;max-height:55vh"></div>
-      <label class="chk" style="margin-top:8px"><input type="checkbox" id="showNames"> 원에 이름 표시</label>
+      <label class="chk" style="margin-top:8px"><input type="checkbox" id="showNames"> 원 아래에 이름 표시</label>
     </section>
 
     <section class="tab-sec" data-tab="kinds">
@@ -138,7 +139,7 @@ button{-webkit-tap-highlight-color:transparent}
   </aside>
 
   <main class="stage">
-    <div class="cvw"><canvas id="cv" width="1600" height="1600"></canvas><button id="ringBtn" class="ringBtn" type="button"></button></div>
+    <div class="cvw"><canvas id="cv" width="1600" height="1600"></canvas><button id="centerBtn" class="ringBtn cenSel" type="button"></button><button id="ringBtn" class="ringBtn" type="button"></button></div>
     <div class="status" id="status"></div>
     <div class="card" id="linkEd" hidden></div>
   </main>
@@ -148,16 +149,15 @@ button{-webkit-tap-highlight-color:transparent}
 (function(){
   /* ===== 설정 (여기만 고치면 됩니다) ===== */
   const LOGO_SRC = 'images/logo.png';   // 오른쪽 위 로고 (사용자가 변경 불가, 켜기/끄기만 가능)
-  const FIXED_CREDIT = 'akakak11096.github.io/splk';          // 크레딧 둘째 줄: 사용자가 지울 수 없는 고정 문구
+  const FIXED_CREDIT = 'made by k';          // 크레딧 둘째 줄: 사용자가 지울 수 없는 고정 문구
   const VISIBLE_COUNT = 15;         // 처음부터 보이는 개수 (나머지는 "추가" 원)
-  const DEFAULT_NAMES = [           // ← 기본 원 19개의 이름 (순서대로 images/01.webp ~ 19.webp)
-    '네오','휴','디디','라스카','란카',
-    '라프타','슈우','노아',
-'리제','샹','니콜라','수',
-'엘리','애시','렌트',
-    '루티','메이카','캐릭터18','캐릭터19'
+  const DEFAULT_NAMES = [           // ← 기본 원 19개의 이름 (순서대로 images/01.png ~ 19.png)
+    '캐릭터1','캐릭터2','캐릭터3','캐릭터4','캐릭터5',
+    '캐릭터6','캐릭터7','캐릭터8','캐릭터9','캐릭터10',
+    '캐릭터11','캐릭터12','캐릭터13','캐릭터14','캐릭터15',
+    '캐릭터16','캐릭터17','캐릭터18','캐릭터19'
   ];
-  const IMAGE_DIR = 'images/', IMAGE_EXT = '.webp';   // ← 이미지 폴더/확장자
+  const IMAGE_DIR = 'images/', IMAGE_EXT = '.png';   // ← 이미지 폴더/확장자
   const DEFAULT_CHARS = DEFAULT_NAMES.map((name,i)=>({
     name,
     src:IMAGE_DIR+String(i+1).padStart(2,'0')+IMAGE_EXT
@@ -169,16 +169,16 @@ button{-webkit-tap-highlight-color:transparent}
   const $=id=>document.getElementById(id);
 
   let legend=[
-    {id:1,c:'#ff4542',t:'최애 커플링'},
-    {id:2,c:'#fbc02d',t:'선호 커플링'},
-    {id:3,c:'#85b78e',t:'좋아하는 조합(커플링O)'},
-    {id:4,c:'#7b9bea',t:'좋아하는 조합(커플링X)'},
-    {id:5,c:'#b5b4b7',t:'불호지만 스루 가능'},
-    {id:6,c:'#383838',t:'지뢰, 유입거부'}
+    {id:1,c:'#e53935',t:'최애 커플링'},
+    {id:2,c:'#fb8c00',t:'선호 커플링'},
+    {id:3,c:'#fbc02d',t:'좋아하는 조합(커플링O)'},
+    {id:4,c:'#2ea043',t:'좋아하는 조합(커플링X)'},
+    {id:5,c:'#2f6bff',t:'불호지만 스루 가능'},
+    {id:6,c:'#111111',t:'지뢰, 유입거부'}
   ];
   let nextK=7,nextL=1,nextC=1,nextT=1;
   let chars=[],links=[],texts=[];
-  let selText=null,logoImg=null,active=1,sel=[],selLink=null,drag=null,V=[],P=new Map(),AR=100,tbox=[];
+  let centerId=null,selText=null,logoImg=null,active=1,sel=[],selLink=null,drag=null,V=[],P=new Map(),AR=100,tbox=[];
 
   const kind=id=>legend.find(k=>k.id===id)||legend[0];
   const ahas=(l,id)=>(l.ah||[]).includes(id);
@@ -194,7 +194,7 @@ button{-webkit-tap-highlight-color:transparent}
   function snapshot(){
     return{v:1,
       chars:chars.map(c=>({id:c.id,name:c.name,on:c.on,extra:!!c.extra,src:c.src||null,cust:c.cust||null})),
-      links,texts,legend,active,next:{k:nextK,l:nextL,c:nextC,t:nextT},
+      center:centerId,links,texts,legend,active,next:{k:nextK,l:nextL,c:nextC,t:nextT},
       showNames:$('showNames').checked,showLogo:$('showLogo').checked,credit:$('credit').value};
   }
   function scheduleSave(){
@@ -215,6 +215,7 @@ button{-webkit-tap-highlight-color:transparent}
     nextL=Math.max(n.l||1,...links.map(l=>l.id+1));
     nextT=Math.max(n.t||1,...texts.map(t=>t.id+1));
     nextK=Math.max(n.k||1,...legend.map(k=>k.id+1));
+    centerId=d.center==null?null:d.center;
     sel=[];selLink=null;selText=null;
     $('showNames').checked=!!d.showNames;$('showLogo').checked=d.showLogo!==false;$('credit').value=d.credit||'';
     chars.forEach(c=>{const u=c.cust||c.src;if(u)loadImg(u,im=>{c.img=im;refresh();});});
@@ -238,10 +239,12 @@ button{-webkit-tap-highlight-color:transparent}
 
   /* ---------- layout ---------- */
   function layout(){
-    V=chars.filter(c=>c.on);const n=V.length;
+    V=chars.filter(c=>c.on);
+    const cc=V.find(c=>c.id===centerId),ring=V.filter(c=>c!==cc),n=ring.length;
     AR=n>2?Math.min(100,Math.floor(R*Math.sin(Math.PI/n)*.92)):100;
     P=new Map();
-    V.forEach((c,i)=>{const th=2*Math.PI*i/n;P.set(c.id,{x:CX+R*Math.sin(th),y:CY-R*Math.cos(th)});});
+    ring.forEach((c,i)=>{const th=2*Math.PI*i/n;P.set(c.id,{x:CX+R*Math.sin(th),y:CY-R*Math.cos(th)});});
+    if(cc)P.set(cc.id,{x:CX,y:CY});
   }
   function geo(l){
     const ps=l.n.map(id=>P.get(id));
@@ -390,7 +393,7 @@ button{-webkit-tap-highlight-color:transparent}
     });
 
     if(!clean&&sel.length>=2){
-      ctx.globalAlpha=.45;halo('원 안의 빈 곳을 누르면 연결 ('+sel.length+'개)',CX,CY,'bold 38px "Noto Sans KR",sans-serif','#6a7385');ctx.globalAlpha=1;
+      ctx.globalAlpha=.45;halo('원 안의 빈 곳을 누르면 연결 ('+sel.length+'개)',CX,P.has(centerId)?CY+AR+70:CY,'bold 38px "Noto Sans KR",sans-serif','#6a7385');ctx.globalAlpha=1;
     }
     // handle for selected link
     if(!clean&&selLink!=null){
@@ -597,7 +600,7 @@ button{-webkit-tap-highlight-color:transparent}
   $('allBtn').onclick=()=>{const on=!chars.every(c=>c.on);chars.forEach(c=>c.on=on);if(!on)sel=[];refresh();};
   $('resetBtn').onclick=()=>{
     if(!confirm('원, 연결, 텍스트를 모두 처음 상태로 되돌릴까요?'))return;
-    links=[];texts=[];sel=[];selLink=null;selText=null;initChars();refresh();
+    links=[];texts=[];sel=[];selLink=null;selText=null;centerId=null;initChars();refresh();
   };
   $('addKind').onclick=()=>{
     const id=nextK++;legend.push({id,c:'#'+Math.floor(Math.random()*0xaaaaaa+0x333333).toString(16).padStart(6,'0'),t:'새 선 종류'});
@@ -617,12 +620,18 @@ button{-webkit-tap-highlight-color:transparent}
     sel=[];updSel();renderLinks();draw();
   }
   function updRing(clean){
-    const b=$('ringBtn');
-    if(clean||sel.length!==1||!P.has(sel[0])){b.style.display='none';return;}
+    const b=$('ringBtn'),cb=$('centerBtn');
+    if(clean||sel.length!==1||!P.has(sel[0])){b.style.display='none';cb.style.display='none';return;}
     const p=P.get(sel[0]),ex=links.find(l=>l.n.length===1&&l.n[0]===sel[0]);
     b.textContent=ex?(ex.k!==active?'⭕ 둘레 선을 현재 종류로':'⭕ 둘레 선 삭제'):'⭕ 둘레 선 추가';
     b.style.left=(p.x/W*100)+'%';b.style.top=((p.y-AR-14)/H*100)+'%';b.style.display='block';
+    cb.textContent=sel[0]===centerId?'◎ 가운데 해제':'◎ 가운데로';
+    cb.style.left=(p.x/W*100)+'%';cb.style.top=((p.y+AR+14)/H*100)+'%';cb.style.display='block';
   }
+  $('centerBtn').onclick=()=>{
+    const id=sel[0];if(id==null)return;
+    centerId=centerId===id?null:id;sel=[];updSel();draw();
+  };
   $('ringBtn').onclick=()=>{
     const id=sel[0];if(id==null)return;
     const ex=links.find(l=>l.n.length===1&&l.n[0]===id);
